@@ -104,20 +104,36 @@ namespace TCP.Server
                     int inLen = sck.Receive(receiveByte);
                     string msg = Encoding.Default.GetString(receiveByte, 0, inLen);
                     string code = msg.Substring(0, 1); // 取得指令代碼
-                    string userName = msg.Substring(1); // 取得使用者名稱
+                    string str = msg.Substring(1); // 取得使用者名稱
 
                     if (code == "0") // 使用者登入
                     {
-                        this.ht.Add(userName, sck);
-                        this.listBox1.Items.Add(userName);
+                        this.ht.Add(str, sck);
+                        this.listBox1.Items.Add(str);
+                        this.SendAll(this.GetOnlineList());
                     }
 
                     if (code == "9") // 使用者離開
                     {
-                        this.ht.Remove(userName);
-                        this.listBox1.Items.Remove(userName);
+                        this.ht.Remove(str);
+                        this.listBox1.Items.Remove(str);
+                        this.SendAll(this.GetOnlineList());
                         th.Abort();
                         sck.Close();
+                    }
+
+                    if(code == "1") // 傳遞訊息給所有人
+                    {
+                        // 完整格式應寫成："1+訊息"。
+                        this.SendAll(msg); // 廣播所有人
+                    }
+
+                    if(code == "2") // 使用者傳送私密訊息 
+                    {
+                        // 完整訊息應該寫成："2 + 訊息 + "|" + 目標用戶
+                        string[] strArray = str.Split("|"); // 切開訊息與收件者
+
+                        this.SendTo(code + strArray[0], strArray[1]); // strArray[0] 是訊息， strArray[1] 是收件者
                     }
                 }
             }
@@ -125,6 +141,54 @@ namespace TCP.Server
             {
                 // 通常為使用者無預警關閉程式
             }
+        }
+
+        /// <summary>
+        /// 傳遞訊息給指定對象
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="userName"></param>
+        private void SendTo(string str,string userName) 
+        {
+            // 將訊息轉為 byte 陣列
+            byte[] sendBytes = Encoding.Default.GetBytes(str);
+            // 取得對象 Socket
+            Socket target = this.ht[userName] as Socket;
+            // 發送訊息
+            target.Send(sendBytes, 0, sendBytes.Length, SocketFlags.None);
+        }
+
+        /// <summary>
+        /// 對所有人進行廣播
+        /// </summary>
+        private void SendAll(string str) 
+        {
+            // 將訊息轉為 byte 陣列
+            byte[] sendBytes = Encoding.Default.GetBytes(str);
+
+            // 取得雜湊表內所有的 Socket 資料
+            foreach(Socket target in this.ht.Values) 
+            {
+                target.Send(sendBytes, 0, sendBytes.Length, SocketFlags.None);
+            }
+        }
+
+        /// <summary>
+        /// 建立線上人員名單，供客戶端更新
+        /// </summary>
+        /// <returns></returns>
+        private string GetOnlineList()
+        {
+            var res = "L";
+
+            for(int i = 0; i< this.listBox1.Items.Count; i += 1)
+            {
+                res += this.listBox1.Items[i];
+                // 非最後一位都要加上 , 區隔
+                if (i < this.listBox1.Items.Count - 1) res += ",";
+            }
+
+            return res;
         }
 
         /// <summary>
