@@ -63,6 +63,9 @@ namespace TCP.Server
             this.button1.Enabled = false;
         }
 
+        /// <summary>
+        /// 伺服器建立方法
+        /// </summary>
         private void ServerSub()
         {
             // 建立本機端點
